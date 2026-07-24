@@ -1,0 +1,24 @@
+# SHA-256 of the OpenTok iOS SDK download, keyed by archive name (<artifact>-<version>).
+#
+# Vonage publishes no checksum manifest of its own alongside the SDK download, so the hash is
+# pinned here, in the repository, and the fetch script refuses to use an archive that does not
+# match.
+#
+# That makes this file the trust anchor for the native code (OpenTok.xcframework) that gets
+# linked into consumers' apps: a substituted or truncated archive fails the fetch instead of
+# being bound and published. It also makes the build reproducible, since the download URL can be
+# replaced in place without the version in the URL changing.
+#
+# To add a version, find the download URL from OTXCFramework's own CocoaPods podspec (the pod
+# `pod install` would fetch), download the archive and record its hash:
+#
+#   v=2.27.1
+#   md5=$(printf '%s' OTXCFramework | md5sum | cut -d' ' -f1)   # or: md5 -q -s OTXCFramework
+#   curl -s "https://cdn.cocoapods.org/Specs/${md5:0:1}/${md5:1:1}/${md5:2:1}/OTXCFramework/$v/OTXCFramework.podspec.json" \
+#     | python3 -c 'import json,sys; print(json.load(sys.stdin)["source"]["http"])'
+#   curl -fsSL -o OpenTok-iOS-$v.zip "<that URL>"
+#   shasum -a 256 OpenTok-iOS-$v.zip
+#
+# Format: <artifact>-<version> <sha256>
+
+OpenTok-iOS-2.27.1 82242e31783eec671b2161d15516e32383ff62b9f9d553fc8238f137cf34fef5

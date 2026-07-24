@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIDeviceFamily</key>
+	<array>
+		<integer>1</integer>
+		<integer>2</integer>
+	</array>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+	<!--
+	  Declared only to keep the build quiet: an iOS app with no supported orientations warns on
+	  every build. The checks are headless and never rotate.
+	-->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>XSAppIconAssets</key>
+	<string></string>
+	<!--
+	  OTPublisher's constructor allocates a capture session even though this suite never calls
+	  StartPreview / Publish on a real session — iOS still requires both usage descriptions to be
+	  present or it kills the process the moment AVCaptureDevice is touched.
+	-->
+	<key>NSCameraUsageDescription</key>
+	<string>OpenTok.Net.iOS device tests construct a publisher.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>OpenTok.Net.iOS device tests construct a publisher.</string>
+</dict>
+</plist>
