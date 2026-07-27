@@ -1,0 +1,108 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Each .NET SDK's iOS workload supports the current target framework and the previous one: the
+      .NET 9 band builds net8.0-ios + net9.0-ios, the .NET 10 band builds net9.0-ios + net10.0-ios.
+      No single SDK can build all three, so build/BuildNugets.sh packs twice and merges the results
+      with build/merge-packages.py. OpenTokSdkBand selects which pass this build is. Same scheme as
+      the sibling Net.Agora.iOS repository's Agora.Binding.props — folded into this one project
+      directly since there is only a single binding package here, not several.
+
+      The platform version is pinned rather than left to the workload's default, because it ends
+      up in the lib/<tfm>/ folder name inside the package. An unpinned net8.0-ios silently becomes
+      whatever the installed workload currently defaults to, so a workload update would change the
+      package's advertised target frameworks without a single source edit.
+    -->
+    <OpenTokSdkBand Condition=" '$(OpenTokSdkBand)' == '' ">net9</OpenTokSdkBand>
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' ">net8.0-ios18.0;net9.0-ios18.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-ios26.0</TargetFrameworks>
+    <!--
+      net8.0-ios is past end of support, which the SDK reports as an error. It ships deliberately:
+      the original OpenTok.Net.iOS package targeted net7.0-ios/net8.0-ios, and a large share of
+      MAUI apps are still on .NET 8.
+    -->
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <CheckEolWorkloads>false</CheckEolWorkloads>
+
+    <!-- OTXCFramework's own minimum per its podspec ("platforms": {"ios": "13.0"}). -->
+    <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
+
+    <IsBindingProject>true</IsBindingProject>
+    <!--
+      OpenTok.xcframework is a *static* archive (confirmed with `file`/`otool` against the real
+      binary — an `ar` archive, not a Mach-O dylib), unlike Agora's dynamic frameworks in the
+      sibling Net.Agora.iOS repository. A static library links straight into this binding
+      assembly's own native companion, so — unlike Agora's NativeReference blocks —
+      NoBindingEmbedding is deliberately *not* set here: embedding is exactly what a static archive
+      wants, and is also what the original OpenTok.Net.iOS package did.
+    -->
+    <!--
+      Ship the native payload as a single <Assembly>.resources.zip rather than a
+      <Assembly>.resources directory in every target framework. The default is 'auto', which only
+      compresses when a framework contains symlinks — observed to make the net8/net9 pass (built
+      by the .NET 9 SDK) emit a loose directory while the net10 pass (built by the .NET 10 SDK)
+      emitted a zip for the identical framework, an inconsistency merge-packages.py would then
+      bake into the shipped package. The uncompressed form also puts every framework file into the
+      package at paths like
+      lib/net8.0-ios18.0/OpenTok.Net.iOS.resources/OpenTok.xcframework/ios-arm64_x86_64-simulator/
+      OpenTok.framework/Headers/OTSession.h, which can trip NU5123 and exceed the 260-character
+      limit on Windows once the global packages folder is prepended.
+    -->
+    <CompressBindingResourcePackage>true</CompressBindingResourcePackage>
+    <Nullable>enable</Nullable>
+
+    <AssemblyName>OpenTok.Net.iOS</AssemblyName>
+    <RootNamespace>OpenTok.Net.iOS</RootNamespace>
+
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>true</ImplicitUsings>
+    <!-- CS1591: the hand-written binding does not annotate every member. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <Target Name="ValidateOpenTokSdkBand" BeforeTargets="Build;Pack" Condition=" '$(TargetFrameworks)' == '' ">
+    <Error Text="OpenTokSdkBand must be 'net9' or 'net10', but was '$(OpenTokSdkBand)'." />
+  </Target>
+
+  <Target Name="ValidateOpenTokXcframework" BeforeTargets="Build;Pack"
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/OpenTok.xcframework')">
+    <Error Text="lib/OpenTok.xcframework is missing. Run build/fetch-opentok.sh first." />
+  </Target>
+
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
+  </ItemGroup>
+
+  <!--
+    OpenTok.xcframework, embedded (see the NoBindingEmbedding note above). The system framework
+    list and the -ObjC linker flag come from OTXCFramework's own podspec (vendored_frameworks +
+    frameworks + libraries "c++"), fetched by build/fetch-opentok.sh from Vonage's own SDK
+    download (not CocoaPods — this is a binding project, not a pod consumer), so it is not in git.
+  -->
+  <ItemGroup>
+    <NativeReference Include="lib/OpenTok.xcframework">
+      <Kind>Framework</Kind>
+      <Frameworks>AudioToolbox AVFoundation CoreFoundation CoreGraphics CoreMedia CoreTelephony CoreVideo Foundation GLKit Metal MetalKit MetalPerformanceShaders Network Accelerate OpenGLES QuartzCore SystemConfiguration UIKit VideoToolbox</Frameworks>
+      <LinkerFlags>-ObjC</LinkerFlags>
+      <IsCxx>True</IsCxx>
+    </NativeReference>
+  </ItemGroup>
+
+  <!-- Packaging -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>OpenTok.Net.iOS</PackageId>
+    <Title>.NET for iOS bindings for the native Vonage OpenTok iOS SDK.</Title>
+    <Description>.NET for iOS / .NET MAUI bindings for the Vonage (formerly TokBox) OpenTok iOS SDK (OTXCFramework $(OpenTokIosVersion)). Lets a .NET app create OpenTok sessions and publish/subscribe audio and video in apps built for iPhone and iPad. Hand-written against the real headers — see ApiDefinition.cs.</Description>
+    <PackageTags>Opentok;Tokbox;Vonage;SDK;MAUI;iOS;dotnet-ios;Binding;VideoCall;WebRTC</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../../build/icon.png" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)../../README.md" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)../../LICENSE" Pack="true" PackagePath="licenses/" Visible="false" />
+  </ItemGroup>
+
+</Project>

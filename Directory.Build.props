@@ -1,0 +1,52 @@
+<Project>
+
+  <PropertyGroup>
+    <!--
+      Package version is <SDK version>.<binding revision>, e.g. 2.27.1.702 — the same scheme the
+      Net.Agora.iOS repository uses for its own packages, and the scheme the original
+      OpenTok.Net.iOS package already shipped under (see sbokatuk/OpenTok.Net's changeversions.sh).
+
+      OpenTokIosVersion pins the vendored SDK: OTXCFramework 2.27.1, fetched from the URL its own
+      CocoaPods podspec declares (https://cdn.cocoapods.org/Specs/e/7/8/OTXCFramework/2.27.1/
+      OTXCFramework.podspec.json -> source.http) rather than through CocoaPods itself — this is a
+      binding project, not a pod consumer. See build/fetch-opentok.sh.
+
+      The fourth component belongs to this repository and advances when the binding changes while
+      the native artifact stays put. It does NOT restart at 1: the predecessor monorepo
+      (sbokatuk/OpenTok.Net) already published OpenTok.Net.iOS up to 2.27.1.701 on nuget.org under
+      this exact package ID —
+      https://api.nuget.org/v3-flatcontainer/opentok.net.ios/index.json lists 2.27.1.7 through
+      2.27.1.701 (verified 2026-07-24). NuGet always resolves the highest version regardless of
+      which repository published it, so a revision here has to sort above whatever that repo last
+      shipped or this package becomes permanently invisible to `dotnet add package` — hence 702,
+      not 1. Check that URL again before ever lowering this number.
+    -->
+    <OpenTokIosVersion>2.27.1</OpenTokIosVersion>
+    <OpenTokBindingRevision>702</OpenTokBindingRevision>
+    <VersionPrefix>$(OpenTokIosVersion).$(OpenTokBindingRevision)</VersionPrefix>
+
+    <Authors>s.bokatuk</Authors>
+    <Company>s.bokatuk</Company>
+    <Copyright>Copyright © s.bokatuk</Copyright>
+    <PackageProjectUrl>https://github.com/sbokatuk/OpenTok.Net.iOS</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sbokatuk/OpenTok.Net.iOS</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <!--
+      MIT covers the binding code in this repository. Vonage's own OpenTok SDK is distributed
+      under its own commercial SDK licence (see OTXCFramework.podspec's "license" -> "text"), so —
+      same reasoning as Net.Agora.iOS's Agora licence note — no second licence expression is added
+      here; nothing is claimed about Vonage's own terms.
+    -->
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition=" '$(GITHUB_ACTIONS)' == 'true' ">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+</Project>

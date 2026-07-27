@@ -1,0 +1,83 @@
+using Foundation;
+using UIKit;
+
+namespace OpenTok.Net.iOS.DeviceTests;
+
+/// <summary>
+/// Host for the on-simulator checks. Runs every one on launch, reports the outcome to stdout —
+/// which <c>simctl launch --console-pty</c> streams straight back to CI — and exits with a verdict
+/// line the runner script greps for.
+/// </summary>
+public static class Program
+{
+    private static void Main(string[] args) => UIApplication.Main(args, null, typeof(AppDelegate));
+}
+
+[Register(nameof(AppDelegate))]
+public sealed class AppDelegate : UIApplicationDelegate
+{
+    public override UIWindow? Window { get; set; }
+
+    public override bool FinishedLaunching(UIApplication application, NSDictionary? launchOptions)
+    {
+        // A window is not strictly needed for a headless run, but iOS terminates an app that never
+        // presents one, which would look like a crash rather than a failing check.
+        var root = new UIViewController();
+        root.View!.BackgroundColor = UIColor.SystemBackground;
+
+#pragma warning disable CA1422 // UIScreen.MainScreen / this UIWindow constructor are obsolete from
+                               // iOS 26 in favour of UIWindowScene overloads that do not exist below
+                               // iOS 13 - this app's own SupportedOSPlatformVersion.
+        Window = new UIWindow(UIScreen.MainScreen.Bounds) { RootViewController = root };
+#pragma warning restore CA1422
+        Window.MakeKeyAndVisible();
+
+        // On the main thread deliberately: OTSession dispatches its delegate callbacks on the main
+        // queue by default (see OTSession.ApiQueue), and nothing here blocks long enough to trip
+        // the watchdog — no check connects a session or touches the network.
+        RunAndReport();
+
+        return true;
+    }
+
+    private static void RunAndReport()
+    {
+        SmokeTests.Reporter = message => Console.WriteLine($"    {message}");
+
+        var failures = 0;
+
+        foreach (var test in SmokeTests.All)
+        {
+            try
+            {
+                test.Execute();
+                Console.WriteLine($"PASS {test.Name}");
+            }
+            catch (Exception exception)
+            {
+                failures++;
+
+                // The type as well as the message: half the interesting failures here are a native
+                // call throwing something the binding did not expect, and the message alone rarely
+                // says which side of the bridge it came from.
+                Console.WriteLine($"FAIL {test.Name}: {exception.GetType().Name}: {exception.Message}");
+
+                if (exception.StackTrace is { } stack)
+                {
+                    Console.WriteLine(stack);
+                }
+            }
+        }
+
+        // Same marker shape as the sibling Net.Agora.iOS repository's device tests, so
+        // .github/scripts/run-simulator-tests.sh is a straight adaptation of that one.
+        Console.WriteLine(failures == 0
+            ? "OPENTOK_E2E_DONE PASS"
+            : $"OPENTOK_E2E_DONE FAIL ({failures} failed)");
+        Console.Out.Flush();
+
+        // Terminate so the runner's `simctl launch --console-pty` returns instead of hanging until
+        // its timeout. Exiting from an iOS app is otherwise not something to imitate.
+        Environment.Exit(failures == 0 ? 0 : 1);
+    }
+}

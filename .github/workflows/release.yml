@@ -1,0 +1,106 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # The tag is the release's label; the package publishes at its own pin from
+  # Directory.Build.props. Republishing a version that did not move is a no-op — the push below
+  # uses --skip-duplicate.
+  build:
+    name: build
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    name: publish to nuget.org and create release
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: nuget.org
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      - name: Authenticate to nuget.org
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to nuget.org
+        run: |
+          dotnet nuget push "artifacts/*.nupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+            --skip-duplicate
+
+      - name: Compose release notes
+        run: |
+          . ./build/pins.sh
+          previous=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+
+          # A curated docs/release-notes/<version>.md replaces the generated commit list when one
+          # exists. The second lookup drops the prerelease suffix, so v2.27.1.2-beta.3 reuses the
+          # notes written for 2.27.1.2 rather than silently falling back to raw commit subjects.
+          notes="docs/release-notes/${GITHUB_REF_NAME#v}.md"
+
+          {
+            if [ -f "${notes}" ]; then
+              echo "==> using curated notes from ${notes}" >&2
+              cat "${notes}"
+              echo
+              if [ -n "${previous}" ]; then
+                echo "**Full changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${previous}...${GITHUB_REF_NAME}"
+              fi
+            else
+              echo "## What's changed"
+              echo
+              if [ -n "${previous}" ]; then
+                git log --no-merges --pretty='- %s (%h)' "${previous}..${GITHUB_REF_NAME}"
+                echo
+                echo "**Full changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${previous}...${GITHUB_REF_NAME}"
+              else
+                echo "Initial release."
+              fi
+            fi
+            echo
+            echo "## Package"
+            echo
+            echo "Bound against OTXCFramework \`${OPENTOK_IOS_VERSION}\` (CocoaPods trunk)."
+            echo
+            echo "| Package | NuGet |"
+            echo "| --- | --- |"
+            echo "| \`OpenTok.Net.iOS\` | [${OPENTOK_PACKAGE_VERSION}](https://www.nuget.org/packages/OpenTok.Net.iOS/${OPENTOK_PACKAGE_VERSION}) |"
+          } > release-notes.md
+
+          cat release-notes.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME#v}" \
+            --notes-file release-notes.md
