@@ -1,0 +1,20 @@
+# What the upstream-drift workflow watches, and the single source of truth for it.
+#
+# build/check-upstream.sh reads this; it knows how to query each ecosystem but nothing about which
+# components this repository binds. Adding a native SDK means adding a row here.
+#
+# Columns are single-tab-separated.
+#   group    reporting group - one GitHub issue per group, titled with this text
+#   label    how the component is named inside the issue
+#   kind     cocoapods | maven | github-release | github-tag
+#   pin      the MSBuild property in Directory.Build.props holding the pinned version
+#   locator  kind-specific: pod name, groupId:artifactId[:packaging][@repo], or owner/repo
+#   confirm  download URL template with {version}, or "-" to follow the vendor's own pointer
+#
+# Vonage publishes no Maven-equivalent feed for the iOS SDK; the pod is the only index, and its
+# podspec's source.http (an artifact.tokbox.com S3 URL) is the actual download - the same one
+# build/fetch-opentok.sh resolves. Leaving confirm as "-" follows that pointer rather than
+# hard-coding an S3 path that Vonage can move.
+#
+# group	label	kind	pin	locator	confirm
+OpenTok iOS	Vonage OpenTok (Video API) iOS SDK	cocoapods	OpenTokIosVersion	OTXCFramework	-
