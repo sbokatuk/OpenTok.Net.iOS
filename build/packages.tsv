@@ -1,0 +1,29 @@
+# The package set, and the single source of truth for it.
+#
+# build/BuildNugets.sh packs in this order, the CI workflows generate their package tables from it,
+# and tests/OpenTok.Net.iOS.PackageTests reads it. Adding a package means adding a row here and a
+# project under src/ — nothing else keeps a second copy of the list.
+#
+# Both rows are binding projects and both carry native payload, but they are not the same shape:
+#
+#   * OpenTok.Net.iOS binds OpenTok.xcframework, a *static* archive, embedded into the binding
+#     assembly's own native companion. It has a real ApiDefinition.cs.
+#   * OpenTok.Net.Transformers.iOS carries OpenTokTransformers.xcframework, a *dynamic* framework,
+#     travelling beside the assembly as <Assembly>.resources.zip. It has no managed API at all —
+#     the classes that use it (OTVideoTransformer, OTAudioTransformer) are already in the binding
+#     above, and the core SDK dlopens the framework when one of them is constructed. See
+#     src/OpenTok.Transformers.md.
+#
+# The two are independent: the transformers package does not depend on the binding, and the binding
+# does not depend on it. A consumer adds the transformers package only if it wants background blur,
+# background replacement or noise suppression, and pays ~68 MB for the privilege.
+#
+# Columns
+#   id       the NuGet package id, which is also the directory under src/ and the .csproj basename
+#   kind     binding - has a real ApiDefinition.cs and a managed API
+#            payload - native payload only, empty ApiDefinition.cs, no managed API
+#   deps     other ids in this repository it depends on, comma separated, or -
+#
+# id	kind	deps
+OpenTok.Net.iOS	binding	-
+OpenTok.Net.Transformers.iOS	payload	-

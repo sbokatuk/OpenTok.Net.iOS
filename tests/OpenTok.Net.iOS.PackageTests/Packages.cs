@@ -2,13 +2,23 @@ using System.IO.Compression;
 
 namespace OpenTok.Net.iOS.PackageTests;
 
-/// <summary>Locates the packed .nupkg and describes what it is expected to contain.</summary>
+/// <summary>Locates the packed .nupkg files and describes what they are expected to contain.</summary>
 public static class Packages
 {
+    /// <summary>The binding package — a real ApiDefinition.cs and a managed API.</summary>
     public const string Id = "OpenTok.Net.iOS";
 
     /// <summary>
-    /// The single xcframework the package ships. Unlike the sibling Net.Agora.iOS repository's
+    /// The transformers package — native payload only, no managed API. See
+    /// src/OpenTok.Transformers.md.
+    /// </summary>
+    public const string TransformersId = "OpenTok.Net.Transformers.iOS";
+
+    /// <summary>Both package ids, matching build/packages.tsv.</summary>
+    public static readonly string[] Ids = [Id, TransformersId];
+
+    /// <summary>
+    /// The xcframework the binding package ships. Unlike the sibling Net.Agora.iOS repository's
     /// several *dynamic* frameworks, OpenTok.xcframework's binary is a static `ar` archive
     /// (confirmed with `file`/`otool`), so it is embedded into the binding assembly rather than
     /// carried as a loose dependency — but the compressed-resources payload check below still
@@ -17,18 +27,30 @@ public static class Packages
     public const string XcFramework = "OpenTok";
 
     /// <summary>
-    /// A floor on the native payload's size. Anything near zero means an empty placeholder was
-    /// packed rather than the real SDK — which is the only thing this check is for.
+    /// The xcframework the transformers package ships. This one <em>is</em> dynamic, which is why
+    /// that project sets NoBindingEmbedding and this one does not.
+    /// </summary>
+    public const string TransformersXcFramework = "OpenTokTransformers";
+
+    /// <summary>
+    /// A floor on the binding's native payload size. Anything near zero means an empty placeholder
+    /// was packed rather than the real SDK — which is the only thing this check is for.
     /// </summary>
     /// <remarks>
     /// The compressed OpenTok.xcframework payload is ~25 MB at SDK 2.34.1 (both iOS slices, ~74 MB
     /// uncompressed). It was ~52 MB at 2.27.1: the SDK genuinely halved, because 2.3x moved the ML
-    /// video transformers — and the TensorFlow Lite model that made the framework so large — out
-    /// into a separate OpenTokTransformers library that this package does not bind. The floor
-    /// therefore has to move *down* on an SDK bump sometimes, and a failure here is a prompt to
-    /// check what the framework now contains, not automatically a packaging bug.
+    /// video transformers — and the TensorFlow Lite models that made the framework so large — out
+    /// into a separate OpenTokTransformers library, which this repository now ships as its own
+    /// package. The floor therefore has to move *down* on an SDK bump sometimes, and a failure here
+    /// is a prompt to check what the framework now contains, not automatically a packaging bug.
     /// </remarks>
     public const long MinPayloadBytes = 15_000_000;
+
+    /// <summary>
+    /// A floor on the transformers payload, which is the larger of the two: ~68 MB compressed,
+    /// ~122 MB on disk, most of it the 36 MB binary and the three TensorFlow Lite models.
+    /// </summary>
+    public const long MinTransformersPayloadBytes = 40_000_000;
 
     /// <summary>
     /// Target frameworks the package must carry, one per SDK band pass (see
@@ -62,14 +84,14 @@ public static class Packages
     /// CompressBindingResourcePackage=true in the csproj means it is always the zip, never a loose
     /// .resources directory — see the comment there for why.
     /// </summary>
-    public static string ResourcesEntry(string tfm) => $"lib/{tfm}/{Id}.resources.zip";
+    public static string ResourcesEntry(string tfm, string id = Id) => $"lib/{tfm}/{id}.resources.zip";
 
-    /// <summary>The names of everything in the binding package's native payload for one target framework.</summary>
-    public static IReadOnlyList<string> NativePayload(string tfm)
+    /// <summary>The names of everything in a package's native payload for one target framework.</summary>
+    public static IReadOnlyList<string> NativePayload(string tfm, string id = Id)
     {
-        using var package = OpenPackage();
+        using var package = OpenPackage(id);
 
-        var zipped = package.GetEntry(ResourcesEntry(tfm));
+        var zipped = package.GetEntry(ResourcesEntry(tfm, id));
         if (zipped is null)
         {
             return [];
@@ -80,13 +102,13 @@ public static class Packages
     }
 
     /// <summary>
-    /// Opens the binding resource package for a target framework. The native payload is a zip
-    /// nested inside the .nupkg, so its contents are only reachable through a second archive.
+    /// Opens a package's binding resource package for a target framework. The native payload is a
+    /// zip nested inside the .nupkg, so its contents are only reachable through a second archive.
     /// </summary>
-    public static ZipArchive OpenNativePayload(ZipArchive package, string tfm)
+    public static ZipArchive OpenNativePayload(ZipArchive package, string tfm, string id = Id)
     {
-        var entry = package.GetEntry(ResourcesEntry(tfm));
-        Assert.True(entry is not null, $"Package has no entry '{ResourcesEntry(tfm)}'.");
+        var entry = package.GetEntry(ResourcesEntry(tfm, id));
+        Assert.True(entry is not null, $"Package has no entry '{ResourcesEntry(tfm, id)}'.");
 
         var buffer = new MemoryStream();
         using (var stream = entry!.Open())
@@ -100,31 +122,45 @@ public static class Packages
 
     public static string ArtifactsDirectory { get; } = ResolveArtifactsDirectory();
 
-    public static string FindPackage(string extension = ".nupkg")
+    public static string FindPackage(string id = Id, string extension = ".nupkg")
     {
         var matches = Directory.Exists(ArtifactsDirectory)
-            ? Directory.GetFiles(ArtifactsDirectory, $"{Id}.*{extension}")
-                .Where(f => IsVersionOf(Path.GetFileName(f), extension))
+            ? Directory.GetFiles(ArtifactsDirectory, $"{id}.*{extension}")
+                .Where(f => IsVersionOf(Path.GetFileName(f), id, extension))
                 .ToArray()
             : [];
 
         Assert.True(
             matches.Length > 0,
-            $"No {Id}.<version>{extension} found in '{ArtifactsDirectory}'. " +
+            $"No {id}.<version>{extension} found in '{ArtifactsDirectory}'. " +
             "Run build/BuildNugets.sh first.");
 
         // A rebuilt working copy can leave several versions behind; test the newest.
         return matches.OrderByDescending(File.GetLastWriteTimeUtc).First();
     }
 
-    private static bool IsVersionOf(string fileName, string extension)
+    /// <summary>
+    /// Whether a file name is a version of exactly <paramref name="id"/>.
+    /// </summary>
+    /// <remarks>
+    /// The prefix test alone is not enough now that there are two packages: the glob for
+    /// "OpenTok.Net.iOS.*" does not match OpenTok.Net.Transformers.iOS, but the reverse question —
+    /// asking for a package whose id is a prefix of another's — is exactly the trap this guards
+    /// against, and requiring the next character to be a digit settles it either way.
+    /// </remarks>
+    private static bool IsVersionOf(string fileName, string id, string extension)
     {
-        var remainder = fileName[(Id.Length + 1)..^extension.Length];
+        if (!fileName.StartsWith($"{id}.", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var remainder = fileName[(id.Length + 1)..^extension.Length];
         return remainder.Length > 0 && char.IsDigit(remainder[0]);
     }
 
-    public static ZipArchive OpenPackage(string extension = ".nupkg") =>
-        ZipFile.OpenRead(FindPackage(extension));
+    public static ZipArchive OpenPackage(string id = Id, string extension = ".nupkg") =>
+        ZipFile.OpenRead(FindPackage(id, extension));
 
     private static string ResolveArtifactsDirectory()
     {

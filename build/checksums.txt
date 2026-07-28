@@ -1,6 +1,12 @@
-# SHA-256 of the OpenTok iOS SDK download, keyed by archive name (<artifact>-<version>).
+# SHA-256 of each OpenTok iOS download, keyed by archive name (<artifact>-<version>).
 #
-# Vonage publishes no checksum manifest of its own alongside the SDK download, so the hash is
+# Two artifacts are tracked, both fetched by build/fetch-opentok.sh:
+#
+#   OpenTok-iOS-<v>              the core SDK (pod OTXCFramework)      -> OpenTok.xcframework
+#   OpenTok-iOS-Transformers-<v> the media transformers (pod           -> OpenTokTransformers.xcframework
+#                                VonageClientSDKVideoTransformers)
+#
+# Vonage publishes no checksum manifest of its own alongside either download, so the hash is
 # pinned here, in the repository, and the fetch script refuses to use an archive that does not
 # match.
 #
@@ -9,15 +15,16 @@
 # being bound and published. It also makes the build reproducible, since the download URL can be
 # replaced in place without the version in the URL changing.
 #
-# To add a version, find the download URL from OTXCFramework's own CocoaPods podspec (the pod
-# `pod install` would fetch), download the archive and record its hash:
+# To add a version, find the download URL from the pod's own CocoaPods podspec (the one
+# `pod install` would fetch), download the archive and record its hash. For the core SDK:
 #
 #   v=2.34.1
-#   md5=$(printf '%s' OTXCFramework | md5sum | cut -d' ' -f1)   # or: md5 -q -s OTXCFramework
-#   curl -s "https://cdn.cocoapods.org/Specs/${md5:0:1}/${md5:1:1}/${md5:2:1}/OTXCFramework/$v/OTXCFramework.podspec.json" \
+#   pod=OTXCFramework                                            # or VonageClientSDKVideoTransformers
+#   md5=$(printf '%s' "$pod" | md5sum | cut -d' ' -f1)           # or: md5 -q -s "$pod"
+#   curl -s "https://cdn.cocoapods.org/Specs/${md5:0:1}/${md5:1:1}/${md5:2:1}/$pod/$v/$pod.podspec.json" \
 #     | python3 -c 'import json,sys; print(json.load(sys.stdin)["source"]["http"])'
-#   curl -fsSL -o OpenTok-iOS-$v.zip "<that URL>"
-#   shasum -a 256 OpenTok-iOS-$v.zip
+#   curl -fsSL -o archive.zip "<that URL>"
+#   shasum -a 256 archive.zip
 #
 # Format: <artifact>-<version> <sha256>
 
@@ -25,3 +32,7 @@
 # a previous SDK can still be fetched and verified without editing this file.
 OpenTok-iOS-2.27.1 82242e31783eec671b2161d15516e32383ff62b9f9d553fc8238f137cf34fef5
 OpenTok-iOS-2.34.1 7d9831ff5df7d2caecb0f9eac72fc05e20d2c86edc13e8a4fabe28b615d6ee0f
+
+# The transformers archive is versioned in lockstep with the core SDK and published from the same
+# S3 bucket, under vonage-ios-sdk-transformers-<version>.zip.
+OpenTok-iOS-Transformers-2.34.1 58ab756724820f7c5422d0c75c0ced3f072a579e64653968d9a1c7468877baa3

@@ -41,7 +41,7 @@
       permanently invisible to `dotnet add package`.
     -->
     <OpenTokIosVersion>2.34.1</OpenTokIosVersion>
-    <OpenTokBindingRevision>1</OpenTokBindingRevision>
+    <OpenTokBindingRevision>2</OpenTokBindingRevision>
     <VersionPrefix>$(OpenTokIosVersion).$(OpenTokBindingRevision)</VersionPrefix>
 
     <Authors>s.bokatuk</Authors>

@@ -159,6 +159,85 @@ public class PackageLayoutTests
         }
     }
 
+    [Theory]
+    [MemberData(nameof(Packages.Frameworks), MemberType = typeof(Packages))]
+    public void Transformers_package_carries_its_framework_for_every_target_framework(string tfm)
+    {
+        using var package = Packages.OpenPackage(Packages.TransformersId);
+
+        var assembly = $"lib/{tfm}/{Packages.TransformersId}.dll";
+        Assert.True(package.GetEntry(assembly) is not null, $"missing '{assembly}'.");
+
+        var entry = package.GetEntry(Packages.ResourcesEntry(tfm, Packages.TransformersId));
+        Assert.True(
+            entry is not null,
+            $"missing '{Packages.ResourcesEntry(tfm, Packages.TransformersId)}'.");
+
+        Assert.True(
+            entry!.Length > Packages.MinTransformersPayloadBytes,
+            $"'{entry.FullName}' is only {entry.Length} bytes.");
+    }
+
+    [Fact]
+    public void Transformers_package_carries_the_models_the_transformers_need()
+    {
+        // The whole point of the package. Each model backs one feature, and a payload missing one
+        // of them fails at runtime in the feature's own way rather than as a load error:
+        //
+        //   selfie_segmentation.tflite  background blur and background replacement
+        //   ns_model_1 / ns_model_2     audio noise suppression
+        //
+        // These were inside OpenTok.framework itself before SDK 2.3x, which is why the core
+        // payload roughly halved when Vonage moved them out — see Packages.MinPayloadBytes.
+        var names = Packages.NativePayload(PayloadTargetFramework, Packages.TransformersId);
+
+        Assert.Contains(names, n => n.EndsWith("selfie_segmentation.tflite", StringComparison.Ordinal));
+        Assert.Contains(names, n => n.EndsWith("ns_model_1.tflite", StringComparison.Ordinal));
+        Assert.Contains(names, n => n.EndsWith("ns_model_2.tflite", StringComparison.Ordinal));
+
+        // Apple requires a privacy manifest from every SDK declaring required-reason API use, and
+        // an app submitted without one its dependencies ship is rejected at review.
+        Assert.Contains(names, n => n.Contains("_Privacy.bundle/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Transformers_package_has_no_managed_api()
+    {
+        // The assertion is the absence. This package exists to carry native payload; if it ever
+        // grows a real ApiDefinition.cs, that is a design change and not something to discover
+        // from a diff. The binding assembly is a stub — a few KB — beside a payload of tens of MB.
+        using var package = Packages.OpenPackage(Packages.TransformersId);
+
+        var assembly = package.GetEntry($"lib/{PayloadTargetFramework}/{Packages.TransformersId}.dll");
+        Assert.True(assembly is not null, "the transformers package has no binding assembly.");
+
+        Assert.True(
+            assembly!.Length < 100_000,
+            $"the transformers stub assembly is {assembly.Length} bytes — it appears to carry a real API.");
+    }
+
+    [Fact]
+    public void Transformers_payload_carries_ios_slices_only()
+    {
+        using var package = Packages.OpenPackage(Packages.TransformersId);
+        using var payload = Packages.OpenNativePayload(package, PayloadTargetFramework, Packages.TransformersId);
+
+        var slices = payload.Entries
+            .Where(e => e.FullName.StartsWith($"{Packages.TransformersXcFramework}.xcframework/", StringComparison.Ordinal))
+            .Select(e => e.FullName.Split('/'))
+            .Where(parts => parts.Length > 2 && parts[2].EndsWith(".framework", StringComparison.Ordinal))
+            .Select(parts => parts[1])
+            .Distinct()
+            .ToList();
+
+        Assert.All(slices, slice => Assert.True(
+            Packages.IsIosSlice(slice),
+            $"{Packages.TransformersXcFramework}.xcframework carries a non-iOS slice '{slice}'."));
+
+        Assert.Single(slices, Packages.IsSimulatorSlice);
+        Assert.Single(slices, slice => !Packages.IsSimulatorSlice(slice));
+    }
+
     /// <summary>
     /// The slice directory names OpenTok.xcframework actually carries inside the payload. The
     /// xcframework root also carries non-slice content alongside the per-platform directories —

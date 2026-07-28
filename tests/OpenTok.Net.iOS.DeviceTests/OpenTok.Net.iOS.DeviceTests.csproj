@@ -19,7 +19,7 @@
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 
     <!-- Matches OTXCFramework's own minimum — see src/OpenTok.Net.iOS/OpenTok.Net.iOS.csproj. -->
-    <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
 
     <!--
       The checks report through stdout, which the runner script streams back with `simctl launch`
@@ -53,6 +53,18 @@
       artifacts/ would silently resolve from nuget.org instead of failing the restore.
     -->
     <PackageReference Include="OpenTok.Net.iOS" Version="[$(OpenTokDevicePackageVersion)]" />
+  </ItemGroup>
+
+  <!--
+    The transformers package, off by default and switched on with -p:OpenTokIncludeTransformers=true.
+    Opt-in rather than always: it adds ~68 MB of payload per build, and the checks in SmokeTests.cs
+    do not use it — the only thing it is wanted for is the CI job that proves the *dynamic*
+    framework gets copied into the .app bundle and signed, which is a packaging property of the
+    package rather than a behaviour of the SDK. See .github/workflows/build.yml's transformers-link
+    job, and src/OpenTok.Transformers.md for why that is worth its own check.
+  -->
+  <ItemGroup Condition=" '$(OpenTokIncludeTransformers)' == 'true' ">
+    <PackageReference Include="OpenTok.Net.Transformers.iOS" Version="[$(OpenTokDevicePackageVersion)]" />
   </ItemGroup>
 
   <ItemGroup>

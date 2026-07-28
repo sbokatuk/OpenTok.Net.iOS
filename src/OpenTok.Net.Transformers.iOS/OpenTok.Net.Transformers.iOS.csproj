@@ -1,0 +1,83 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Native payload only, no managed API. See src/OpenTok.Transformers.md for the whole story; the
+    short version is that OTVideoTransformer and OTAudioTransformer already live in
+    OpenTok.Net.iOS, and this package carries the framework the SDK dlopens when one is
+    constructed. Without it those constructors return null and raise
+    0x0A000006 (OTC_MEDIA_TRANSFORMER_OPENTOK_TRANSFORMERS_LIBRARY_NOT_LOADED) — at runtime, after
+    compiling and linking cleanly.
+  -->
+
+  <PropertyGroup>
+    <!-- Same two-band split as the binding — see OpenTok.Net.iOS.csproj for why. -->
+    <OpenTokSdkBand Condition=" '$(OpenTokSdkBand)' == '' ">net9</OpenTokSdkBand>
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' ">net8.0-ios18.0;net9.0-ios18.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-ios26.0</TargetFrameworks>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <CheckEolWorkloads>false</CheckEolWorkloads>
+
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+
+    <IsBindingProject>true</IsBindingProject>
+
+    <!--
+      Set here, and deliberately NOT on OpenTok.Net.iOS. The difference is the binaries':
+      OpenTok.xcframework's is a static `ar` archive, which links into the binding assembly's own
+      native companion and so wants embedding; OpenTokTransformers.xcframework's is a dynamically
+      linked Mach-O (confirmed with `file`), which cannot be embedded that way at all. It travels
+      beside the assembly as <Assembly>.resources.zip and is copied into the app bundle, exactly
+      like the dynamic extension frameworks in the sibling Net.Agora.iOS repository.
+    -->
+    <NoBindingEmbedding>true</NoBindingEmbedding>
+    <CompressBindingResourcePackage>true</CompressBindingResourcePackage>
+
+    <AssemblyName>OpenTok.Net.Transformers.iOS</AssemblyName>
+    <RootNamespace>OpenTok.Net.Transformers.iOS</RootNamespace>
+
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>true</ImplicitUsings>
+  </PropertyGroup>
+
+  <Target Name="ValidateOpenTokSdkBand" BeforeTargets="Build;Pack" Condition=" '$(TargetFrameworks)' == '' ">
+    <Error Text="OpenTokSdkBand must be 'net9' or 'net10', but was '$(OpenTokSdkBand)'." />
+  </Target>
+
+  <Target Name="ValidateOpenTokTransformersXcframework" BeforeTargets="Build;Pack"
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/OpenTokTransformers.xcframework')">
+    <Error Text="lib/OpenTokTransformers.xcframework is missing. Run build/fetch-opentok.sh first." />
+  </Target>
+
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+  </ItemGroup>
+
+  <!--
+    No Frameworks or LinkerFlags metadata, unlike the binding's NativeReference. The podspec lists
+    the same system frameworks for both artifacts, but this one is a dynamic framework that
+    declares its own load commands — the linker reads them from the Mach-O rather than needing them
+    restated, and there is no -ObjC force-load of a static archive to compensate for here.
+  -->
+  <ItemGroup>
+    <NativeReference Include="lib/OpenTokTransformers.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+  </ItemGroup>
+
+  <!-- Packaging -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>OpenTok.Net.Transformers.iOS</PackageId>
+    <Title>The Vonage Video media transformers for .NET for iOS.</Title>
+    <Description>The native payload for Vonage's OpenTok media transformers (OpenTokTransformers.xcframework $(OpenTokIosVersion), pod VonageClientSDKVideoTransformers), packaged for .NET for iOS. Enables background blur, background replacement and audio noise suppression. Add it alongside OpenTok.Net.iOS — it carries no managed API of its own; the classes that turn it on, OTVideoTransformer and OTAudioTransformer, are in that package. Without this one they return null and raise OTC_MEDIA_TRANSFORMER_OPENTOK_TRANSFORMERS_LIBRARY_NOT_LOADED at runtime.</Description>
+    <PackageTags>Opentok;Tokbox;Vonage;SDK;MAUI;iOS;dotnet-ios;Binding;VideoCall;WebRTC;transformers;background;blur;noise;suppression</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../../build/icon.png" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)../../README.md" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)../../LICENSE" Pack="true" PackagePath="licenses/" Visible="false" />
+  </ItemGroup>
+
+</Project>

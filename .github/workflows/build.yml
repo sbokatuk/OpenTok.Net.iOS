@@ -24,6 +24,16 @@ on:
         required: false
         default: '["net8.0-ios18.0", "net10.0-ios26.0"]'
         type: string
+      verify-release:
+        description: >
+          Whether to run the Release-configuration jobs — the ones that prove the native payload
+          survives the managed linker and links for a real device. Defaults to true, so a pull
+          request gets them; releases turn it off, because the tagged commit has already been
+          through them on its own PR and repeating a ~40 minute AOT build between packing and
+          publishing buys nothing.
+        required: false
+        default: true
+        type: boolean
 
 env:
   DOTNET_NOLOGO: 'true'
@@ -161,6 +171,146 @@ jobs:
             --configuration Debug \
             -p:RuntimeIdentifier=iossimulator-arm64 \
             -p:OpenTokPackageVersion="${OPENTOK_PACKAGE_VERSION}${s}"
+
+  # What every Debug job above cannot reach, and the reason this one exists.
+  #
+  # Debug leaves the managed linker switched off and AOT unused, so those jobs can only answer
+  # whether the package restores and compiles. A binding package's most interesting failures are
+  # downstream of that:
+  #
+  #   * The managed linker walks the whole assembly graph and removes what it decides is
+  #     unreachable. Types reached only through the Objective-C runtime — every [Model] delegate
+  #     subclass here — are exactly the shape it can get wrong.
+  #   * The *device* slice is a different slice, built from a different archive, and nothing else
+  #     in this pipeline links it at all. The simulator legs stay green through a package whose
+  #     device slice was empty, mis-stripped or built for the wrong minimum OS version.
+  #   * OpenTok.xcframework is a static archive force-loaded with -ObjC, so every undefined symbol
+  #     in it has to be satisfied at link time by a system framework this repository names by hand
+  #     in OpenTok.Net.iOS.csproj. A missing one is a link error in a *consumer's* app and nowhere
+  #     else — which is precisely how the previously published 2.27.1.701 shipped without Network,
+  #     Accelerate and CoreFoundation.
+  #
+  # Code signing is off: a public runner has neither a certificate nor a provisioning profile, and
+  # neither affects whether the thing links. The .app being produced is the assertion, since AOT
+  # and the native link both run before the bundle is assembled.
+  device-link:
+    name: link for a device (Release)
+    timeout-minutes: 45
+    needs: pack
+    if: ${{ inputs.verify-release }}
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: ./.github/actions/select-xcode
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui-ios
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      # One target framework, not all three. Each band carries its own copy of the payload, but the
+      # copies hold the same framework entry for entry — asserted directly by the package tests, in
+      # Native_payload_is_the_same_across_target_frameworks — so a second band would spend another
+      # half hour linking native bits this one has already linked.
+      - name: Link the sample for a real device
+        run: |
+          . ./build/pins.sh
+          s="${{ inputs.suffix != '' && format('-{0}', inputs.suffix) || '' }}"
+          tfm=net9.0-ios18.0
+
+          dotnet build samples/OpenTok.Sample.iOS \
+            --configuration Release \
+            --framework "${tfm}" \
+            -p:RuntimeIdentifier=ios-arm64 \
+            -p:EnableCodeSigning=false \
+            -p:OpenTokPackageVersion="${OPENTOK_PACKAGE_VERSION}${s}"
+
+          app="samples/OpenTok.Sample.iOS/bin/Release/${tfm}/ios-arm64/OpenTok.Sample.iOS.app"
+          if [ ! -d "${app}" ]; then
+            echo "::error::${app} was not produced — AOT or the native link failed"
+            exit 1
+          fi
+
+          # Reported rather than asserted on a count: how many assemblies survive the linker is the
+          # linker's business and moves with every SDK update. The bundle existing is the check.
+          echo "linked ${app}"
+          ls "${app}"/*.dll 2>/dev/null | wc -l | xargs echo "assemblies surviving the linker:"
+
+  # The transformers package's own device link. Separate from the job above because it is a
+  # separate failure: that one carries a *static* archive embedded into the binding assembly, this
+  # one a *dynamic* framework that has to be copied into the .app and re-signed, and only a device
+  # build exercises the copy-and-sign path with the device slice. A simulator build would link the
+  # simulator slice and tell us nothing about it.
+  transformers-link:
+    name: link the transformers for a device (Release)
+    timeout-minutes: 45
+    needs: pack
+    if: ${{ inputs.verify-release }}
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: ./.github/actions/select-xcode
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Install iOS workload
+        run: dotnet workload install ios
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      # The device tests, not the sample: the sample does not reference the transformers package,
+      # and adding it there would make every sample build pay 68 MB of payload for a feature it
+      # does not demonstrate. The device-test app takes it through OpenTokTransformersPackageVersion.
+      - name: Link the device tests with the transformers package
+        run: |
+          . ./build/pins.sh
+          s="${{ inputs.suffix != '' && format('-{0}', inputs.suffix) || '' }}"
+          tfm=net9.0-ios18.0
+
+          dotnet build tests/OpenTok.Net.iOS.DeviceTests \
+            --configuration Release \
+            --framework "${tfm}" \
+            -p:RuntimeIdentifier=ios-arm64 \
+            -p:EnableCodeSigning=false \
+            -p:OpenTokDevicePackageVersion="${OPENTOK_PACKAGE_VERSION}${s}" \
+            -p:OpenTokIncludeTransformers=true
+
+          app="tests/OpenTok.Net.iOS.DeviceTests/bin/Release/${tfm}/ios-arm64/OpenTok.Net.iOS.DeviceTests.app"
+          if [ ! -d "${app}" ]; then
+            echo "::error::${app} was not produced"
+            exit 1
+          fi
+
+          # The point of the job: the dynamic framework has to be *in the bundle*, not merely
+          # linked against. A binding that resolved it at build time and failed to copy it produces
+          # an app that launches and then dies on first use with a dyld error.
+          if [ ! -d "${app}/Frameworks/OpenTokTransformers.framework" ]; then
+            echo "::error::OpenTokTransformers.framework was not copied into the app bundle"
+            find "${app}" -maxdepth 2 -name '*.framework' -print
+            exit 1
+          fi
+
+          echo "OpenTokTransformers.framework is present in the bundle"
 
   e2e:
     name: simulator smoke test (${{ matrix.target-framework }})
