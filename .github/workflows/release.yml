@@ -1,6 +1,11 @@
 name: release
 
 on:
+  # Dispatched as well as pushed to: auto-release.yml creates the tag with GITHUB_TOKEN when a
+  # release note is merged, and a tag pushed with that token deliberately does not trigger
+  # `on: push: tags`. workflow_dispatch is documented as an exception that always creates a run.
+  # Dispatched at the tag's ref, so github.ref_name below is the tag either way.
+  workflow_dispatch:
   push:
     tags: ['v*']
 
@@ -43,9 +48,6 @@ jobs:
 
           echo "${GITHUB_REF_NAME} -> ${GITHUB_SHA} is on ${DEFAULT_BRANCH}" >> "$GITHUB_STEP_SUMMARY"
 
-  # The tag is the release's label; the package publishes at its own pin from
-  # Directory.Build.props. Republishing a version that did not move is a no-op — the push below
-  # uses --skip-duplicate.
   # The tag does not decide what gets stamped — the package packs at its own pin from
   # Directory.Build.props — but it is what the GitHub release and the changelog range are named
   # after, so a tag that disagrees with the props would advertise a version nobody published.
@@ -83,6 +85,9 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "releasing ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
 
+  # The tag is the release's label; the package publishes at its own pin from
+  # Directory.Build.props. Republishing a version that did not move is a no-op — the push below
+  # uses --skip-duplicate.
   build:
     name: build
     needs: [guard, version]
