@@ -25,8 +25,13 @@
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <CheckEolWorkloads>false</CheckEolWorkloads>
 
-    <!-- OTXCFramework's own minimum per its podspec ("platforms": {"ios": "13.0"}). -->
-    <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
+    <!--
+      OTXCFramework's own minimum per its podspec ("platforms": {"ios": "15.0"}). Raised from 13.0
+      by the 2.34.1 bump — that is the SDK's floor, not a choice made here, and an app targeting
+      iOS 13 or 14 cannot consume this package. Verify against the podspec on every SDK bump; the
+      value is not derivable from anything else in this repository.
+    -->
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
 
     <IsBindingProject>true</IsBindingProject>
     <!--
@@ -76,15 +81,30 @@
   </ItemGroup>
 
   <!--
-    OpenTok.xcframework, embedded (see the NoBindingEmbedding note above). The system framework
-    list and the -ObjC linker flag come from OTXCFramework's own podspec (vendored_frameworks +
-    frameworks + libraries "c++"), fetched by build/fetch-opentok.sh from Vonage's own SDK
-    download (not CocoaPods — this is a binding project, not a pod consumer), so it is not in git.
+    OpenTok.xcframework, embedded (see the NoBindingEmbedding note above). The framework itself is
+    fetched by build/fetch-opentok.sh from Vonage's own SDK download (not CocoaPods — this is a
+    binding project, not a pod consumer), so it is not in git.
+
+    The Frameworks list below is transcribed from OTXCFramework's podspec "frameworks" array, and
+    the -ObjC flag and IsCxx from its "libraries": "c++" — a static archive brings no link
+    instructions of its own, so anything the podspec would have told CocoaPods has to be restated
+    here or the consuming app fails to link with undefined symbols.
+
+    Kept in the podspec's own order so the two can be diffed by eye on an SDK bump. 2.34.1 declares
+    exactly: Foundation AVFoundation AudioToolbox CoreFoundation CoreGraphics CoreMedia
+    CoreTelephony CoreVideo GLKit OpenGLES QuartzCore SystemConfiguration UIKit VideoToolbox
+    Network Accelerate MetalKit.
+
+    Metal and MetalPerformanceShaders are listed here but *not* in the podspec. They are additions,
+    not drift: MetalKit's own module pulls Metal in, and linking them explicitly is harmless
+    (a framework the binary never references costs nothing at load time on a static link). Left in
+    place rather than trimmed to match, because removing a system framework that turns out to be
+    needed surfaces as an undefined-symbol link failure in a *consumer's* app, not here.
   -->
   <ItemGroup>
     <NativeReference Include="lib/OpenTok.xcframework">
       <Kind>Framework</Kind>
-      <Frameworks>AudioToolbox AVFoundation CoreFoundation CoreGraphics CoreMedia CoreTelephony CoreVideo Foundation GLKit Metal MetalKit MetalPerformanceShaders Network Accelerate OpenGLES QuartzCore SystemConfiguration UIKit VideoToolbox</Frameworks>
+      <Frameworks>Foundation AVFoundation AudioToolbox CoreFoundation CoreGraphics CoreMedia CoreTelephony CoreVideo GLKit OpenGLES QuartzCore SystemConfiguration UIKit VideoToolbox Network Accelerate MetalKit Metal MetalPerformanceShaders</Frameworks>
       <LinkerFlags>-ObjC</LinkerFlags>
       <IsCxx>True</IsCxx>
     </NativeReference>

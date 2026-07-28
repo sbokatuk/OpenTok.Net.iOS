@@ -17,11 +17,18 @@ public static class Packages
     public const string XcFramework = "OpenTok";
 
     /// <summary>
-    /// A floor on the native payload's size: the compressed OpenTok.xcframework payload is
-    /// consistently ~52 MB (both iOS slices, headers and the bundled selfie_segmentation.tflite
-    /// model). Anything near zero means an empty placeholder was packed rather than the real SDK.
+    /// A floor on the native payload's size. Anything near zero means an empty placeholder was
+    /// packed rather than the real SDK — which is the only thing this check is for.
     /// </summary>
-    public const long MinPayloadBytes = 30_000_000;
+    /// <remarks>
+    /// The compressed OpenTok.xcframework payload is ~25 MB at SDK 2.34.1 (both iOS slices, ~74 MB
+    /// uncompressed). It was ~52 MB at 2.27.1: the SDK genuinely halved, because 2.3x moved the ML
+    /// video transformers — and the TensorFlow Lite model that made the framework so large — out
+    /// into a separate OpenTokTransformers library that this package does not bind. The floor
+    /// therefore has to move *down* on an SDK bump sometimes, and a failure here is a prompt to
+    /// check what the framework now contains, not automatically a packaging bug.
+    /// </remarks>
+    public const long MinPayloadBytes = 15_000_000;
 
     /// <summary>
     /// Target frameworks the package must carry, one per SDK band pass (see

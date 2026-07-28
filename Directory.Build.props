@@ -2,27 +2,46 @@
 
   <PropertyGroup>
     <!--
-      Package version is <SDK version>.<binding revision>, e.g. 2.27.1.702 — the same scheme the
+      Package version is <SDK version>.<binding revision>, e.g. 2.34.1.1 — the same scheme the
       Net.Agora.iOS repository uses for its own packages, and the scheme the original
       OpenTok.Net.iOS package already shipped under (see sbokatuk/OpenTok.Net's changeversions.sh).
 
-      OpenTokIosVersion pins the vendored SDK: OTXCFramework 2.27.1, fetched from the URL its own
-      CocoaPods podspec declares (https://cdn.cocoapods.org/Specs/e/7/8/OTXCFramework/2.27.1/
+      OpenTokIosVersion pins the vendored SDK: OTXCFramework 2.34.1, fetched from the URL its own
+      CocoaPods podspec declares (https://cdn.cocoapods.org/Specs/e/7/8/OTXCFramework/2.34.1/
       OTXCFramework.podspec.json -> source.http) rather than through CocoaPods itself — this is a
       binding project, not a pod consumer. See build/fetch-opentok.sh.
 
+      2.34.1 brings this repository level with sbokatuk/OpenTok.Net.Android, which binds
+      opentok-android-sdk 2.34.1 — the two platforms of one product had drifted seven minor
+      releases apart. Two consequences beyond the version string, both of them breaking:
+
+        * The pod's own floor moved from iOS 13.0 to iOS 15.0 ("platforms": {"ios": "15.0"}), so
+          SupportedOSPlatformVersion moves with it in src/OpenTok.Net.iOS/OpenTok.Net.iOS.csproj.
+          An app still targeting iOS 13 or 14 cannot take this package.
+        * The bound API surface changed — OTSubscriberKit is now bound as its own type rather than
+          folded into OTSubscriber, the delegate protocols are typed with the header's own
+          OTPublisherKit/OTSubscriberKit parameters, and OTVideoViewScaleBehavior's members are no
+          longer named "t" and "ll". See docs/release-notes for the full list.
+
       The fourth component belongs to this repository and advances when the binding changes while
-      the native artifact stays put. It does NOT restart at 1: the predecessor monorepo
-      (sbokatuk/OpenTok.Net) already published OpenTok.Net.iOS up to 2.27.1.701 on nuget.org under
-      this exact package ID —
-      https://api.nuget.org/v3-flatcontainer/opentok.net.ios/index.json lists 2.27.1.7 through
-      2.27.1.701 (verified 2026-07-24). NuGet always resolves the highest version regardless of
-      which repository published it, so a revision here has to sort above whatever that repo last
-      shipped or this package becomes permanently invisible to `dotnet add package` — hence 702,
-      not 1. Check that URL again before ever lowering this number.
+      the native artifact stays put.
+
+      It restarts at 1 here, which it could NOT do while the first three components were still
+      2.27.1. The predecessor monorepo (sbokatuk/OpenTok.Net) published OpenTok.Net.iOS up to
+      2.27.1.701 on nuget.org under this exact package ID —
+      https://api.nuget.org/v3-flatcontainer/opentok.net.ios/index.json lists ten versions ending
+      2.27.1.701, plus the prerelease 2.27.1.702-beta.1.1 (re-verified 2026-07-28). NuGet resolves
+      the highest version regardless of which repository published it, so while this repository was
+      also on SDK 2.27.1 its revision had to sort above 701 — hence the 702 that used to sit here.
+      Moving the SDK to 2.34.1 lifts the first three components clear of every published version,
+      so 2.34.1.1 already sorts above all of them and the counter is free to start over.
+
+      The rule that produced 702 still applies, though: before lowering any component, check that
+      URL. A version that does not sort above what is already on nuget.org makes this package
+      permanently invisible to `dotnet add package`.
     -->
-    <OpenTokIosVersion>2.27.1</OpenTokIosVersion>
-    <OpenTokBindingRevision>702</OpenTokBindingRevision>
+    <OpenTokIosVersion>2.34.1</OpenTokIosVersion>
+    <OpenTokBindingRevision>1</OpenTokBindingRevision>
     <VersionPrefix>$(OpenTokIosVersion).$(OpenTokBindingRevision)</VersionPrefix>
 
     <Authors>s.bokatuk</Authors>
