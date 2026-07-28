@@ -1266,6 +1266,9 @@ namespace OpenTok.Net.iOS
     interface OTAudioDeviceManager
     {
         // +(void)setAudioDevice:(id<OTAudioDevice> _Nullable)device;
+        //
+        // Process-wide and permanent: there is one capture source and one render target for the
+        // whole app, and this must be called before connecting a session.
         [Static]
         [Export("setAudioDevice:")]
         void SetAudioDevice([NullAllowed] IOTAudioDevice device);
@@ -1274,6 +1277,70 @@ namespace OpenTok.Net.iOS
         [Static]
         [NullAllowed, Export("currentAudioDevice")]
         IOTAudioDevice CurrentAudioDevice { get; }
+
+        // +(id<OTAudioSessionManager> _Nullable)currentAudioSessionManager;
+        //
+        // The same object as CurrentAudioDevice when that device implements
+        // OTAudioSessionManager, and null when it does not. The SDK's own default audio device
+        // does implement it, so this is the entry point to CallKit integration without writing a
+        // custom audio device — see IOTAudioSessionManager.
+        [Static]
+        [NullAllowed, Export("currentAudioSessionManager")]
+        IOTAudioSessionManager CurrentAudioSessionManager { get; }
+    }
+
+    interface IOTAudioSessionManager
+    {
+    }
+
+    // @protocol OTAudioSessionManager <NSObject>
+    //
+    // AVAudioSession control for calling services — in practice, CallKit.
+    //
+    // CallKit activates and deactivates the audio session itself, on its own schedule, and an app
+    // that lets the SDK also manage the session ends up with the two fighting: audio that does not
+    // start on answer, or that stops when a second call arrives. This protocol is how an app hands
+    // that control over — the SDK still *configures* the session, but waits to be told when the
+    // system has activated it.
+    //
+    // Optional for a custom audio device to implement, but the SDK's own default device already
+    // does, which is what makes CallKit integration reachable without writing an OTAudioDevice at
+    // all. Reach it through OTAudioDeviceManager.CurrentAudioSessionManager rather than by
+    // constructing anything.
+    [Protocol, Model]
+    [BaseType(typeof(NSObject))]
+    interface OTAudioSessionManager
+    {
+        // @required -(void)enableCallingServicesMode;
+        //
+        // Call once, early — at launch or before the first call. Until this is called the SDK
+        // manages the session itself and the three methods below are ignored.
+        [Abstract]
+        [Export("enableCallingServicesMode")]
+        void EnableCallingServicesMode();
+
+        // @required -(void)preconfigureAudioSessionForCallWithMode:(AVAudioSessionMode _Nullable)mode;
+        //
+        // Configures the session but deliberately does *not* activate it. Call it in response to
+        // CXAnswerCallAction or CXStartCallAction, so the session is already configured when the
+        // system activates it. Pass null for the default (AVAudioSessionModeVoiceChat).
+        [Abstract]
+        [Export("preconfigureAudioSessionForCallWithMode:")]
+        void PreconfigureAudioSessionForCall([NullAllowed] string mode);
+
+        // @required -(void)audioSessionDidActivate:(AVAudioSession * _Nonnull)session;
+        //
+        // Forward CXProviderDelegate's provider:didActivateAudioSession: here.
+        [Abstract]
+        [Export("audioSessionDidActivate:")]
+        void AudioSessionDidActivate(AVAudioSession session);
+
+        // @required -(void)audioSessionDidDeactivate:(AVAudioSession * _Nonnull)session;
+        //
+        // Forward CXProviderDelegate's provider:didDeactivateAudioSession: here.
+        [Abstract]
+        [Export("audioSessionDidDeactivate:")]
+        void AudioSessionDidDeactivate(AVAudioSession session);
     }
 
     // @interface OTAudioFormat : NSObject

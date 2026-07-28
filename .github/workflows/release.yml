@@ -18,6 +18,12 @@ jobs:
   build:
     name: build
     uses: ./.github/workflows/build.yml
+    with:
+      # Off here, on for pull requests. The Release jobs — the managed linker and the device link —
+      # are a correctness check on the *code*, and the commit being tagged has already been through
+      # them on its own PR. Repeating a ~40 minute AOT build between packing and publishing delays
+      # the release without being able to discover anything new.
+      verify-release: false
 
   publish:
     name: publish to nuget.org and create release

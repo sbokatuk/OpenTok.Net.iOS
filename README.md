@@ -12,6 +12,22 @@
 dotnet add package OpenTok.Net.iOS
 ```
 
+## Packages
+
+| Package | Native artifact | Add it when |
+| --- | --- | --- |
+| `OpenTok.Net.iOS` | [`OTXCFramework`](https://cocoapods.org/pods/OTXCFramework) → `OpenTok.xcframework` | Always — `OTSession`, `OTPublisher`, `OTSubscriber` and the rest. |
+| `OpenTok.Net.Transformers.iOS` | [`VonageClientSDKVideoTransformers`](https://cocoapods.org/pods/VonageClientSDKVideoTransformers) → `OpenTokTransformers.xcframework` | You want background blur, background replacement or audio noise suppression. Costs ~68 MB. |
+
+The transformers package carries **native payload and no managed API**: the classes that use it —
+`OTVideoTransformer`, `OTAudioTransformer`, `OTPublisherKit.VideoTransformers` — are in the binding
+above, and the SDK loads the framework when one is constructed. Without it that construction
+compiles, links, and then fails at runtime with
+`OTC_MEDIA_TRANSFORMER_OPENTOK_TRANSFORMERS_LIBRARY_NOT_LOADED`. See
+[`src/OpenTok.Transformers.md`](src/OpenTok.Transformers.md).
+
+Neither package depends on the other — add the transformers alongside the binding if you want them.
+
 ```csharp
 using OpenTok.Net.iOS;
 
