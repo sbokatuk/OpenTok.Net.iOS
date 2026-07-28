@@ -7,6 +7,16 @@ name: build
 on:
   workflow_call:
     inputs:
+      verify:
+        description: >
+          Whether to run the verification jobs — package validation, the sample builds, the
+          Release link checks and the e2e suites. Pull requests leave it at true, and are the only
+          place any of this runs. Releases pass false: the tagged commit was already verified on
+          its pull request, so a tag packs and publishes and nothing more. The gate is the same
+          input, with the same name and the same meaning, in every repository.
+        required: false
+        default: true
+        type: boolean
       suffix:
         description: >
           Optional prerelease suffix (e.g. beta.12.34) appended to the package's version.
@@ -24,17 +34,6 @@ on:
         required: false
         default: '["net8.0-ios18.0", "net10.0-ios26.0"]'
         type: string
-      verify-release:
-        description: >
-          Whether to run the Release-configuration jobs — the ones that prove the native payload
-          survives the managed linker and links for a real device. Defaults to true, so a pull
-          request gets them; releases turn it off, because the tagged commit has already been
-          through them on its own PR and repeating a ~40 minute AOT build between packing and
-          publishing buys nothing.
-        required: false
-        default: true
-        type: boolean
-
 env:
   DOTNET_NOLOGO: 'true'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
@@ -101,6 +100,7 @@ jobs:
 
   validate:
     name: validate package
+    if: ${{ inputs.verify }}
     needs: pack
     runs-on: ubuntu-latest
     steps:
@@ -131,6 +131,7 @@ jobs:
 
   sample:
     name: build sample app
+    if: ${{ inputs.verify }}
     timeout-minutes: 30
     needs: pack
     runs-on: macos-15
@@ -197,7 +198,7 @@ jobs:
     name: link for a device (Release)
     timeout-minutes: 45
     needs: pack
-    if: ${{ inputs.verify-release }}
+    if: ${{ inputs.verify }}
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -256,7 +257,7 @@ jobs:
     name: link the transformers for a device (Release)
     timeout-minutes: 45
     needs: pack
-    if: ${{ inputs.verify-release }}
+    if: ${{ inputs.verify }}
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -314,6 +315,7 @@ jobs:
 
   e2e:
     name: simulator smoke test (${{ matrix.target-framework }})
+    if: ${{ inputs.verify }}
     timeout-minutes: 45
     needs: pack
     runs-on: macos-15
