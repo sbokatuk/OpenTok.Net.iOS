@@ -2,7 +2,8 @@
 
 [![NuGet](https://img.shields.io/nuget/v/OpenTok.Net.iOS?label=nuget)](https://www.nuget.org/packages/OpenTok.Net.iOS)
 [![Targets: net8.0 | net9.0 | net10.0](https://img.shields.io/badge/targets-net8.0%20%7C%20net9.0%20%7C%20net10.0-512BD4)](#building-locally)
-[![OTXCFramework 2.27.1](https://img.shields.io/badge/OTXCFramework-2.27.1-099DFD)](https://cocoapods.org/pods/OTXCFramework)
+[![OTXCFramework 2.34.1](https://img.shields.io/badge/OTXCFramework-2.34.1-099DFD)](https://cocoapods.org/pods/OTXCFramework)
+[![iOS 15.0+](https://img.shields.io/badge/iOS-15.0%2B-lightgrey)](#requirements)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
 
 .NET for iOS and .NET MAUI bindings for Vonage's (formerly TokBox's) native OpenTok iOS SDK.
@@ -35,10 +36,20 @@ The iOS binding used to live inside the [`sbokatuk/OpenTok.Net`](https://github.
 monorepo (alongside the Android binding and a MAUI sample); this repository carries it forward on
 its own, structured after the sibling [`Net.Agora.iOS`](https://github.com/sbokatuk/Net.Agora.iOS)
 repository. The package's version is `<SDK version>.<binding revision>` — see
-`Directory.Build.props` for why the two numbers are tracked separately, and note that the fourth
-component does **not** restart at 1: the predecessor monorepo already published `OpenTok.Net.iOS`
-up to `2.27.1.701` on nuget.org under this same package ID, and NuGet always resolves the highest
-version regardless of which repository published it.
+`Directory.Build.props` for why the two numbers are tracked separately, and for the rule that the
+version must always sort above what is already on nuget.org (which is why the revision sat at `702`
+while this repository was still on SDK 2.27.1, and why moving to 2.34.1 let it restart at 1).
+
+For a cross-platform API over this package and its Android counterpart — one
+`Session`/`Publisher`/`Subscriber` and a ready-made MAUI video view, with no `#if IOS` — see
+[`sbokatuk/OpenTok.Net`](https://github.com/sbokatuk/OpenTok.Net). This repository is the raw iOS
+binding it sits on.
+
+## Requirements
+
+- **iOS 15.0 or newer.** OTXCFramework 2.34.1's own floor per its podspec, raised from 13.0 by that
+  SDK release. An app targeting iOS 13 or 14 cannot take this package; stay on `2.27.1.701` if you
+  need one of those.
 
 ### What is bound, and why by hand
 
@@ -46,9 +57,25 @@ Objective Sharpie's bundled clang cannot parse modern Xcode SDKs directly agains
 xcframework the way it can a plain header set, and — same reasoning as the sibling
 [`Net.Agora.iOS`](https://github.com/sbokatuk/Net.Agora.iOS) repository — the safer, reproducible
 path is a hand-written `ApiDefinition.cs`/`StructsAndEnums.cs`, generated once against the real
-`OpenTok.framework` headers and maintained by hand from there. `OTSession`, `OTPublisher`,
-`OTSubscriber`, `OTStream`, `OTConnection` and `OTError` are covered, along with their delegate
-protocols. Extend it by reading more of the same headers as more of the SDK is needed.
+`OpenTok.framework` headers and maintained by hand from there. `OTSession`, `OTPublisherKit` /
+`OTPublisher`, `OTSubscriberKit` / `OTSubscriber`, `OTStream`, `OTConnection` and `OTError` are
+covered, along with their delegate protocols, the network- and media-link stats types, and the
+2.34-era additions (`OTVideoCodecPreference`, bitrate and degradation presets, camera torch and
+zoom, caption translation, `forceDisconnect:`). Every member carries the header declaration it was
+transcribed from, so the next SDK bump can be diffed against the headers rather than re-derived.
+Extend it by reading more of the same headers as more of the SDK is needed.
+
+Three conventions run through the file and are enforced by `tests/OpenTok.Net.iOS.PackageTests`,
+because each is a mistake the compiler cannot catch:
+
+- `[DisableDefaultCtor]` on every type whose ObjC `init` is `NS_UNAVAILABLE`. Without it the
+  generator emits a parameterless constructor that compiles and then traps.
+- Delegate callbacks typed with the *header's* parameter type — `OTPublisherKit`, not
+  `OTPublisher`. A screen-share publisher is constructed as the base type, and a callback declared
+  over the subclass could not receive it.
+- Enum members named and valued from the header. Objective Sharpie's prefix stripping once reduced
+  `OTVideoViewScaleBehaviorFit`/`Fill` to members called `t` and `ll`, and several
+  `OT*VideoEventReason` values the SDK actually sends had no member at all.
 
 **A single, static framework.** Unlike Agora's several *dynamic* xcframeworks (each shipped
 alongside the binding assembly and linked by the consuming app), `OpenTok.xcframework`'s binary is
@@ -97,7 +124,7 @@ create an `OTPublisher`, and tear both down; nothing touches the network and no 
 involved:
 
 ```sh
-./.github/scripts/run-simulator-tests.sh 2.27.1.702 net10.0-ios26.0
+./.github/scripts/run-simulator-tests.sh 2.34.1.1 net10.0-ios26.0
 ```
 
 Building the `net10.0-ios26.0` app (this script, or the device-tests project directly) needs an
@@ -123,7 +150,12 @@ builds have no cross-platform path.
 publishes/subscribes video directly against `OTSession`/`OTPublisher`/`OTSubscriber`: an API
 key/session/token entry, Connect/Disconnect/Publish buttons, and local + remote video views backed
 by a hand-rolled MAUI handler (`OpenTokVideoView.cs`) — exactly what a consumer skipping a
-cross-platform façade has to wire up.
+cross-platform façade has to wire up. It is deliberately the same flow and layout as
+`samples/OpenTok.Sample.Android` in the Android binding repository, so the two read side by side.
+
+Running it needs a Vonage Video API key, session id and token; everything up to Connect works
+without them. If you would rather not write the handler or the delegate subclasses at all, that is
+what [`OpenTok.Net` and `OpenTok.Net.Maui`](https://github.com/sbokatuk/OpenTok.Net) package.
 
 It consumes the packed `OpenTok.Net.iOS` package from `./artifacts` (see `NuGet.config`), so fetch
 and pack first:

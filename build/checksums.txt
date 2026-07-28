@@ -12,7 +12,7 @@
 # To add a version, find the download URL from OTXCFramework's own CocoaPods podspec (the pod
 # `pod install` would fetch), download the archive and record its hash:
 #
-#   v=2.27.1
+#   v=2.34.1
 #   md5=$(printf '%s' OTXCFramework | md5sum | cut -d' ' -f1)   # or: md5 -q -s OTXCFramework
 #   curl -s "https://cdn.cocoapods.org/Specs/${md5:0:1}/${md5:1:1}/${md5:2:1}/OTXCFramework/$v/OTXCFramework.podspec.json" \
 #     | python3 -c 'import json,sys; print(json.load(sys.stdin)["source"]["http"])'
@@ -21,4 +21,7 @@
 #
 # Format: <artifact>-<version> <sha256>
 
+# Older entries are kept rather than replaced: build/fetch-opentok.sh takes a version argument, so
+# a previous SDK can still be fetched and verified without editing this file.
 OpenTok-iOS-2.27.1 82242e31783eec671b2161d15516e32383ff62b9f9d553fc8238f137cf34fef5
+OpenTok-iOS-2.34.1 7d9831ff5df7d2caecb0f9eac72fc05e20d2c86edc13e8a4fabe28b615d6ee0f

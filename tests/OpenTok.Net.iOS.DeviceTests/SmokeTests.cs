@@ -204,10 +204,14 @@ public static class SmokeTests
             SmokeTests.Reporter($"delegate: stream destroyed {stream.StreamId}");
     }
 
-    /// <summary>A subclass of the bound (all-optional) publisher delegate protocol.</summary>
+    /// <summary>
+    /// A subclass of the bound publisher delegate protocol. The parameter is
+    /// <see cref="OTPublisherKit"/>, matching the header — see the note on the same delegate in
+    /// samples/OpenTok.Sample.iOS/MainPage.xaml.cs for why the concrete subclass would be wrong.
+    /// </summary>
     private sealed class PublisherDelegate : OTPublisherKitDelegate
     {
-        public override void DidFailWithError(OTPublisher publisher, OTError error) =>
+        public override void DidFailWithError(OTPublisherKit publisher, OTError error) =>
             SmokeTests.Reporter($"delegate: publisher error {error.Code}");
     }
 }

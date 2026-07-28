@@ -50,7 +50,7 @@ public partial class MainPage : ContentPage
 
         if (error is not null)
         {
-            Append($"connectWithToken failed: {error.Code} {error.LocalizedDescription}");
+            Append($"connectWithToken failed: {(OTSessionErrorCode)(int)error.Code} {error.LocalizedDescription}");
             return;
         }
 
@@ -208,8 +208,9 @@ public partial class MainPage : ContentPage
             owner.Append("session disconnected");
         });
 
+        // error.Code is NSError's nint; the OT*ErrorCode enums in the binding name the values.
         public override void DidFailWithError(OTSession session, OTError error) =>
-            owner.Append($"session error: {error.Code} {error.LocalizedDescription}");
+            owner.Append($"session error: {(OTSessionErrorCode)(int)error.Code} {error.LocalizedDescription}");
 
         public override void StreamCreated(OTSession session, OTStream stream) =>
             MainThread.BeginInvokeOnMainThread(() =>
@@ -246,13 +247,22 @@ public partial class MainPage : ContentPage
             });
     }
 
-    /// <summary>Translates <c>OTPublisherKitDelegate</c>'s callbacks into UI updates.</summary>
+    /// <summary>
+    /// Translates <c>OTPublisherKitDelegate</c>'s callbacks into UI updates.
+    /// </summary>
+    /// <remarks>
+    /// The parameter is <see cref="OTPublisherKit"/>, not <see cref="OTPublisher"/> — that is what
+    /// the header declares, and it matters: a screen-share publisher is constructed as a bare
+    /// <c>OTPublisherKit</c>, so a delegate declared over the concrete subclass could not receive
+    /// one. This sample's publisher happens to be an <see cref="OTPublisher"/>; the delegate does
+    /// not need to know that.
+    /// </remarks>
     private sealed class PublisherDelegate(MainPage owner) : OTPublisherKitDelegate
     {
-        public override void DidFailWithError(OTPublisher publisher, OTError error) =>
-            owner.Append($"publisher error: {error.Code} {error.LocalizedDescription}");
+        public override void DidFailWithError(OTPublisherKit publisher, OTError error) =>
+            owner.Append($"publisher error: {(OTPublisherErrorCode)(int)error.Code} {error.LocalizedDescription}");
 
-        public override void StreamCreated(OTPublisher publisher, OTStream stream) =>
+        public override void StreamCreated(OTPublisherKit publisher, OTStream stream) =>
             owner.Append("local stream published");
     }
 
@@ -264,13 +274,15 @@ public partial class MainPage : ContentPage
     /// </summary>
     private sealed class SubscriberDelegate(MainPage owner) : OTSubscriberKitDelegate
     {
-        public override void DidConnectToStream(OTSubscriber subscriber) => MainThread.BeginInvokeOnMainThread(() =>
+        // OTSubscriberKit, as the header declares — the view lives on OTSubscriber, so the
+        // owner's own field is what supplies it rather than the callback argument.
+        public override void DidConnectToStream(OTSubscriberKit subscriber) => MainThread.BeginInvokeOnMainThread(() =>
         {
-            AttachNativeView(subscriber.View, owner.RemoteView.PlatformView);
+            AttachNativeView(owner._subscriber?.View, owner.RemoteView.PlatformView);
             owner.Append("subscribed — remote video attached");
         });
 
-        public override void DidFailWithError(OTSubscriber subscriber, OTError error) =>
-            owner.Append($"subscriber error: {error.Code} {error.LocalizedDescription}");
+        public override void DidFailWithError(OTSubscriberKit subscriber, OTError error) =>
+            owner.Append($"subscriber error: {(OTSubscriberErrorCode)(int)error.Code} {error.LocalizedDescription}");
     }
 }

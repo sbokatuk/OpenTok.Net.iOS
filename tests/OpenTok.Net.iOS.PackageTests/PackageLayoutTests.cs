@@ -60,15 +60,26 @@ public class PackageLayoutTests
     }
 
     [Fact]
-    public void Package_carries_the_tflite_model_the_framework_bundles()
+    public void Package_carries_the_resources_bundled_inside_the_framework()
     {
-        // selfie_segmentation.tflite lives inside OpenTok.framework itself (both slices, not a
-        // top-level resource declared separately in the podspec). Embedding the whole framework
-        // directory as a NativeReference resource is what carries it along — this is the check
-        // that a future switch to a leaner staging step in fetch-opentok.sh doesn't quietly drop it.
+        // OpenTok.framework carries more than a binary and headers, and none of it is declared
+        // separately in the podspec — embedding the whole framework directory as a NativeReference
+        // resource is what carries it along. This is the check that a future switch to a leaner
+        // staging step in fetch-opentok.sh does not quietly drop the extras.
+        //
+        // PrivacyInfo.xcprivacy is the one with teeth. Apple requires a privacy manifest from every
+        // SDK that declares required-reason API use, and an app submitted without the one its
+        // dependencies ship is rejected at App Store review — a failure that surfaces to a
+        // *consumer*, at the worst possible moment, and never here.
+        //
+        // (At 2.27.1 this test asserted selfie_segmentation.tflite instead. That model is gone as
+        // of 2.3x: the ML video transformers moved to a separate OpenTokTransformers library this
+        // package does not bind, which is also why the payload roughly halved — see
+        // Packages.MinPayloadBytes.)
         var names = Packages.NativePayload(PayloadTargetFramework);
 
-        Assert.Contains(names, n => n.EndsWith("selfie_segmentation.tflite", StringComparison.Ordinal));
+        Assert.Contains(names, n => n.EndsWith("PrivacyInfo.xcprivacy", StringComparison.Ordinal));
+        Assert.Contains(names, n => n.Contains("VonageWebRTC_Privacy.bundle/", StringComparison.Ordinal));
     }
 
     [Fact]
