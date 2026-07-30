@@ -69,12 +69,19 @@ jobs:
               && dotnet workload install ios )
           done
 
-      - name: Cache the fetched xcframework
+      - name: Cache the fetched xcframeworks
         id: xcframework
         uses: actions/cache@v4
         with:
-          path: src/OpenTok.Net.iOS/lib
-          key: opentok-ios-xcframework-${{ hashFiles('Directory.Build.props', 'build/checksums.txt') }}
+          # Both destinations build/fetch-opentok.sh stages into - the binding's
+          # OpenTok.xcframework AND the payload package's OpenTokTransformers.xcframework. Caching
+          # only the first was a partial save: the next run hit it, skipped the fetch below, and
+          # the transformers pack died on its missing NativeResource. The key prefix moved to
+          # -xcframeworks so partial caches saved before this fix can never match again.
+          path: |
+            src/OpenTok.Net.iOS/lib
+            src/OpenTok.Net.Transformers.iOS/lib
+          key: opentok-ios-xcframeworks-${{ hashFiles('Directory.Build.props', 'build/checksums.txt') }}
 
       - name: Fetch the OpenTok iOS SDK
         if: steps.xcframework.outputs.cache-hit != 'true'
