@@ -76,10 +76,14 @@ public class PackageLayoutTests
         // of 2.3x: the ML video transformers moved to a separate OpenTokTransformers library this
         // package does not bind, which is also why the payload roughly halved — see
         // Packages.MinPayloadBytes.)
+        //
+        // (Through 2.34.1 the framework also carried a VonageWebRTC_Privacy.bundle next to the
+        // manifest. 2.35.1 ships without it — the framework's own _CodeSignature/CodeResources
+        // lists no bundle, so it was gone before fetch-opentok.sh ever staged it — and the
+        // manifest alone is what Apple actually checks.)
         var names = Packages.NativePayload(PayloadTargetFramework);
 
         Assert.Contains(names, n => n.EndsWith("PrivacyInfo.xcprivacy", StringComparison.Ordinal));
-        Assert.Contains(names, n => n.Contains("VonageWebRTC_Privacy.bundle/", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -195,9 +199,10 @@ public class PackageLayoutTests
         Assert.Contains(names, n => n.EndsWith("ns_model_1.tflite", StringComparison.Ordinal));
         Assert.Contains(names, n => n.EndsWith("ns_model_2.tflite", StringComparison.Ordinal));
 
-        // Apple requires a privacy manifest from every SDK declaring required-reason API use, and
-        // an app submitted without one its dependencies ship is rejected at review.
-        Assert.Contains(names, n => n.Contains("_Privacy.bundle/", StringComparison.Ordinal));
+        // Through 2.34.1 this also asserted a *_Privacy.bundle. As of 2.35.1 Vonage ships
+        // OpenTokTransformers.framework with no privacy manifest at all — neither a bundle nor a
+        // PrivacyInfo.xcprivacy — so there is nothing for the package to carry; the core
+        // OpenTok.framework's manifest (checked above) is the one Apple sees.
     }
 
     [Fact]
