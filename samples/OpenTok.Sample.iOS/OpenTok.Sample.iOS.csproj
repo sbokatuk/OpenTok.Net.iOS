@@ -38,7 +38,7 @@
     <ApplicationVersion>1</ApplicationVersion>
 
     <!-- Matches OTXCFramework's own minimum — see src/OpenTok.Net.iOS/OpenTok.Net.iOS.csproj. -->
-    <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 
   <ItemGroup>

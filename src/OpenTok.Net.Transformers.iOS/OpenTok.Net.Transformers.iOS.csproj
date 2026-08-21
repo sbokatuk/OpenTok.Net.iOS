@@ -17,7 +17,8 @@
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <CheckEolWorkloads>false</CheckEolWorkloads>
 
-    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <!-- The pod's own floor, same as the binding's — see OpenTok.Net.iOS.csproj. -->
+    <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
 
     <IsBindingProject>true</IsBindingProject>
 

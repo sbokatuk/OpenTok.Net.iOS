@@ -27,7 +27,7 @@ public sealed class AppDelegate : UIApplicationDelegate
 
 #pragma warning disable CA1422 // UIScreen.MainScreen / this UIWindow constructor are obsolete from
                                // iOS 26 in favour of UIWindowScene overloads that do not exist below
-                               // iOS 13 - this app's own SupportedOSPlatformVersion.
+                               // iOS 17 - this app's own SupportedOSPlatformVersion.
         Window = new UIWindow(UIScreen.MainScreen.Bounds) { RootViewController = root };
 #pragma warning restore CA1422
         Window.MakeKeyAndVisible();

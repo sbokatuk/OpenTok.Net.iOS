@@ -18,7 +18,7 @@
 # To add a version, find the download URL from the pod's own CocoaPods podspec (the one
 # `pod install` would fetch), download the archive and record its hash. For the core SDK:
 #
-#   v=2.34.1
+#   v=2.35.1
 #   pod=OTXCFramework                                            # or VonageClientSDKVideoTransformers
 #   md5=$(printf '%s' "$pod" | md5sum | cut -d' ' -f1)           # or: md5 -q -s "$pod"
 #   curl -s "https://cdn.cocoapods.org/Specs/${md5:0:1}/${md5:1:1}/${md5:2:1}/$pod/$v/$pod.podspec.json" \
@@ -32,7 +32,9 @@
 # a previous SDK can still be fetched and verified without editing this file.
 OpenTok-iOS-2.27.1 82242e31783eec671b2161d15516e32383ff62b9f9d553fc8238f137cf34fef5
 OpenTok-iOS-2.34.1 7d9831ff5df7d2caecb0f9eac72fc05e20d2c86edc13e8a4fabe28b615d6ee0f
+OpenTok-iOS-2.35.1 1dc79c1c3aa65803f3b00786e433846c26d3696706a53ad1db6f50571e7760c9
 
 # The transformers archive is versioned in lockstep with the core SDK and published from the same
 # S3 bucket, under vonage-ios-sdk-transformers-<version>.zip.
 OpenTok-iOS-Transformers-2.34.1 58ab756724820f7c5422d0c75c0ced3f072a579e64653968d9a1c7468877baa3
+OpenTok-iOS-Transformers-2.35.1 c1f220bb65cb3fe94f778a2d8fe95a7480a17b4de02673eb297c689deec3c150

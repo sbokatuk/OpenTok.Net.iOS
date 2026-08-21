@@ -108,7 +108,12 @@ namespace OpenTok.Net.iOS
         PublisherInternalError = 2000,
         PublisherEncryptionInternalError = 6001,
         /// <summary>End-to-end encryption is on and the negotiated codec does not support it.</summary>
-        EncryptionUnsupportedCodec = 6005
+        EncryptionUnsupportedCodec = 6005,
+        /// <summary>
+        /// The mode passed to <see cref="OTPublisherKit.SetTargetScalabilityMode"/> is null or not
+        /// one of L1T1 through L3T3. Added in 2.35.1 as OTPublisherInvalidScalabilityMode.
+        /// </summary>
+        PublisherInvalidScalabilityMode = 6006
     }
 
     /// <summary>The <c>code</c> of an <see cref="OTError"/> reported to a subscriber's delegate.</summary>

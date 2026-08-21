@@ -26,12 +26,13 @@
     <CheckEolWorkloads>false</CheckEolWorkloads>
 
     <!--
-      OTXCFramework's own minimum per its podspec ("platforms": {"ios": "15.0"}). Raised from 13.0
-      by the 2.34.1 bump — that is the SDK's floor, not a choice made here, and an app targeting
-      iOS 13 or 14 cannot consume this package. Verify against the podspec on every SDK bump; the
-      value is not derivable from anything else in this repository.
+      OTXCFramework's own minimum per its podspec ("platforms": {"ios": "17.0"}), and the
+      MinimumOSVersion in the framework's own Info.plist. Raised from 15.0 by the 2.35.1 bump (and
+      from 13.0 by 2.34.1 before it) — that is the SDK's floor, not a choice made here, and an app
+      targeting iOS 15 or 16 cannot consume this package. Verify against the podspec on every SDK
+      bump; the value is not derivable from anything else in this repository.
     -->
-    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
 
     <IsBindingProject>true</IsBindingProject>
     <!--
@@ -90,8 +91,8 @@
     instructions of its own, so anything the podspec would have told CocoaPods has to be restated
     here or the consuming app fails to link with undefined symbols.
 
-    Kept in the podspec's own order so the two can be diffed by eye on an SDK bump. 2.34.1 declares
-    exactly: Foundation AVFoundation AudioToolbox CoreFoundation CoreGraphics CoreMedia
+    Kept in the podspec's own order so the two can be diffed by eye on an SDK bump. 2.35.1 declares
+    exactly (unchanged from 2.34.1): Foundation AVFoundation AudioToolbox CoreFoundation CoreGraphics CoreMedia
     CoreTelephony CoreVideo GLKit OpenGLES QuartzCore SystemConfiguration UIKit VideoToolbox
     Network Accelerate MetalKit.
 

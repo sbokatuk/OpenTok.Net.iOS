@@ -19,7 +19,7 @@
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 
     <!-- Matches OTXCFramework's own minimum — see src/OpenTok.Net.iOS/OpenTok.Net.iOS.csproj. -->
-    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
 
     <!--
       The checks report through stdout, which the runner script streams back with `simctl launch`

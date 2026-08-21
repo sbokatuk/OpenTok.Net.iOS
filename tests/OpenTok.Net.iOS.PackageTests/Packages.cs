@@ -37,8 +37,8 @@ public static class Packages
     /// was packed rather than the real SDK — which is the only thing this check is for.
     /// </summary>
     /// <remarks>
-    /// The compressed OpenTok.xcframework payload is ~25 MB at SDK 2.34.1 (both iOS slices, ~74 MB
-    /// uncompressed). It was ~52 MB at 2.27.1: the SDK genuinely halved, because 2.3x moved the ML
+    /// The compressed OpenTok.xcframework payload is ~27 MB at SDK 2.35.1 and was ~25 MB at 2.34.1
+    /// (both iOS slices, ~74 MB uncompressed). It was ~52 MB at 2.27.1: the SDK genuinely halved, because 2.3x moved the ML
     /// video transformers — and the TensorFlow Lite models that made the framework so large — out
     /// into a separate OpenTokTransformers library, which this repository now ships as its own
     /// package. The floor therefore has to move *down* on an SDK bump sometimes, and a failure here

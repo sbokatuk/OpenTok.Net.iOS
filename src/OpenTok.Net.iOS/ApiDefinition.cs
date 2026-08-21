@@ -525,6 +525,23 @@ namespace OpenTok.Net.iOS
         [Export("degradationPreference", ArgumentSemantic.Assign)]
         OTDegradationPreference DegradationPreference { get; set; }
 
+        // @property (nonatomic, readonly) NSString * _Nullable targetScalabilityMode;
+        //
+        // Added in 2.35.1 (beta). The last value handed to SetTargetScalabilityMode, or null if it
+        // was never called — the caller's intent, not the mode actually applied, which can differ
+        // when a non-SVC codec is negotiated.
+        [NullAllowed, Export("targetScalabilityMode")]
+        string TargetScalabilityMode { get; }
+
+        // -(void)setTargetScalabilityMode:(NSString * _Nullable)mode error:(NSError * _Nullable * _Nullable)error;
+        //
+        // Added in 2.35.1 (beta). Scalable Video Coding layering for the Media Router path: one of
+        // L1T1, L1T2, L1T3, L2T1, L2T2, L2T3, L3T1, L3T2, L3T3. Anything else — including null —
+        // sets the error to OTPublisherErrorCode.PublisherInvalidScalabilityMode. May be called
+        // before the media path is negotiated; the mode is applied once it is.
+        [Export("setTargetScalabilityMode:error:")]
+        void SetTargetScalabilityMode([NullAllowed] string mode, [NullAllowed] out NSError error);
+
         // @property (nonatomic, strong) NSArray * _Nonnull videoTransformers;
         [Export("videoTransformers", ArgumentSemantic.Strong)]
         OTVideoTransformer[] VideoTransformers { get; set; }
@@ -1166,9 +1183,9 @@ namespace OpenTok.Net.iOS
         [Export("getPlaneStride:")]
         int GetPlaneStride(int plane);
 
-        // -(void)setMetadata:(NSData * _Nonnull)data error:(OTError * _Nullable *)error;
-        [Export("setMetadata:error:")]
-        void SetMetadata(NSData data, [NullAllowed] out OTError error);
+        // setMetadata:error: was deprecated in 2.34.1 and removed from OTVideoKit.h in 2.35.1, so
+        // it is no longer bound: a binding over a selector the framework does not implement would
+        // compile and then throw NSInvalidArgumentException at the call site.
     }
 
     interface IOTVideoCaptureConsumer

@@ -2,8 +2,8 @@
 
 [![NuGet](https://img.shields.io/nuget/v/OpenTok.Net.iOS?label=nuget)](https://www.nuget.org/packages/OpenTok.Net.iOS)
 [![Targets: net8.0 | net9.0 | net10.0](https://img.shields.io/badge/targets-net8.0%20%7C%20net9.0%20%7C%20net10.0-512BD4)](#building-locally)
-[![OTXCFramework 2.34.1](https://img.shields.io/badge/OTXCFramework-2.34.1-099DFD)](https://cocoapods.org/pods/OTXCFramework)
-[![iOS 15.0+](https://img.shields.io/badge/iOS-15.0%2B-lightgrey)](#requirements)
+[![OTXCFramework 2.35.1](https://img.shields.io/badge/OTXCFramework-2.35.1-099DFD)](https://cocoapods.org/pods/OTXCFramework)
+[![iOS 17.0+](https://img.shields.io/badge/iOS-17.0%2B-lightgrey)](#requirements)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
 
 .NET for iOS and .NET MAUI bindings for Vonage's (formerly TokBox's) native OpenTok iOS SDK.
@@ -63,9 +63,9 @@ binding it sits on.
 
 ## Requirements
 
-- **iOS 15.0 or newer.** OTXCFramework 2.34.1's own floor per its podspec, raised from 13.0 by that
-  SDK release. An app targeting iOS 13 or 14 cannot take this package; stay on `2.27.1.701` if you
-  need one of those.
+- **iOS 17.0 or newer.** OTXCFramework 2.35.1's own floor per its podspec, raised from 15.0 by that
+  SDK release (and from 13.0 by 2.34.1 before it). An app targeting iOS 15 or 16 cannot take this
+  package; stay on `2.34.1.2` if you need one of those, or on `2.27.1.701` for iOS 13 and 14.
 
 ### What is bound, and why by hand
 
@@ -77,7 +77,8 @@ path is a hand-written `ApiDefinition.cs`/`StructsAndEnums.cs`, generated once a
 `OTPublisher`, `OTSubscriberKit` / `OTSubscriber`, `OTStream`, `OTConnection` and `OTError` are
 covered, along with their delegate protocols, the network- and media-link stats types, and the
 2.34-era additions (`OTVideoCodecPreference`, bitrate and degradation presets, camera torch and
-zoom, caption translation, `forceDisconnect:`). Every member carries the header declaration it was
+zoom, caption translation, `forceDisconnect:`) and 2.35's scalable-video-coding target mode
+(`OTPublisherKit.SetTargetScalabilityMode`). Every member carries the header declaration it was
 transcribed from, so the next SDK bump can be diffed against the headers rather than re-derived.
 Extend it by reading more of the same headers as more of the SDK is needed.
 
@@ -140,7 +141,7 @@ create an `OTPublisher`, and tear both down; nothing touches the network and no 
 involved:
 
 ```sh
-./.github/scripts/run-simulator-tests.sh 2.34.1.1 net10.0-ios26.0
+./.github/scripts/run-simulator-tests.sh 2.35.1.1 net10.0-ios26.0
 ```
 
 Building the `net10.0-ios26.0` app (this script, or the device-tests project directly) needs an

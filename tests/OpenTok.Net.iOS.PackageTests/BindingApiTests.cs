@@ -150,4 +150,26 @@ public class BindingApiTests
             Assert.Contains(type, types);
         }
     }
+
+    [Fact]
+    public void Publisher_error_codes_include_the_2_35_scalability_mode_value()
+    {
+        using var api = OpenBinding();
+
+        // 2.35.1 added OTPublisherInvalidScalabilityMode = 6006 to OTError.h alongside the new
+        // setTargetScalabilityMode:error:. Same failure shape as the video-event reasons: the SDK
+        // reports the code and the enum has no name for it. Values and names follow the header
+        // (minus the OT prefix, as with every member of this enum); the order is the binding's.
+        Assert.Equal(
+            [
+                ("PublisherSuccess", 0L),
+                ("SessionDisconnected", 1010L),
+                ("PublisherWebRTCError", 1610L),
+                ("PublisherInternalError", 2000L),
+                ("PublisherEncryptionInternalError", 6001L),
+                ("EncryptionUnsupportedCodec", 6005L),
+                ("PublisherInvalidScalabilityMode", 6006L),
+            ],
+            api.EnumMembersOf("OpenTok.Net.iOS.OTPublisherErrorCode"));
+    }
 }
